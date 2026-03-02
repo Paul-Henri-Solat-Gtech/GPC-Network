@@ -4,6 +4,18 @@
 #include <enet/enet.h>
 #include <iostream>
 
+struct Package
+{
+
+};
+
+struct PackagePlayer : Package
+{
+	int posX, posY, posZ;
+	std::string name;
+};
+
+
 class Network
 {
 public:

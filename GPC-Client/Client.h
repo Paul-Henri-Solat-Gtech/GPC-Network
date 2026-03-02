@@ -4,6 +4,16 @@
 #include <enet/enet.h>
 #include <iostream>
 
+struct Package 
+{
+};
+
+struct PackagePlayer : Package
+{
+	int posX, posY, posZ;
+	std::string name;
+};
+
 class Client
 {
 public:
@@ -12,10 +22,14 @@ public:
 	bool Init();
 	void Close();
 
-	void ConnectingTo(const char* _addressIP, int _addressPort);
+	bool ConnectingTo(const char* _addressIP, int _addressPort);
+	void DisconnectFromServer();
+	bool SendMsgToServer(const char* _message);
+	bool SendDataToServer(Package _packageToSend);
 
 protected:
 	ENetHost* m_pClient;
+	ENetPeer* m_pServerConnection;
 
 private:
 

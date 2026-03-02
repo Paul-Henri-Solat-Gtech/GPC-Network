@@ -24,24 +24,25 @@ void Client::Close()
     }
 }
 
-void Client::ConnectingTo(const char* _addressIP, int _addressPort)
+bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
 {
     ENetAddress address;
     enet_address_set_host(&address, _addressIP);
     address.port = _addressPort;
 
-    ENetPeer* peer = enet_host_connect(m_pClient, &address, 2, 0);
-    if (!peer)
+    m_pServerConnection = enet_host_connect(m_pClient, &address, 2, 0);
+    if (!m_pServerConnection)
     {
         std::cerr << "Connection failed to server." << std::endl;
         enet_host_destroy(m_pClient);
-        return;
+        return false;
     }
 
     // Wait for connection
     ENetEvent event;
     bool connected = false;
-    for (int i = 0; i < 10 && !connected; ++i)
+    int maxTries = 10;
+    for (int i = 0; i < maxTries && !connected; ++i)
     {
         while (enet_host_service(m_pClient, &event, 1000) > 0)
         {
@@ -49,16 +50,40 @@ void Client::ConnectingTo(const char* _addressIP, int _addressPort)
             {
                 std::cout << "Succesfully connected to Enet Server !" << std::endl;
                 connected = true;
-                const char* message = "Hello server !";
-                ENetPacket* packet = enet_packet_create(message, strlen(message) + 1, ENET_PACKET_FLAG_RELIABLE);
-                enet_peer_send(peer, 0, packet);
+                //SendMsgToServer("bruh"); 
             }
         }
-        if (!connected) std::cout << "Connection Try " << i + 1 << "/10..." << std::endl;
+        if (!connected) std::cout << "Connection Try " << i + 1 << "/" << maxTries << "...\n";
     }
     if (!connected)
     {
         std::cerr << "Failed connection (timeout)." << std::endl;
+        return false;
     }
-    enet_peer_disconnect(peer, 0);
+
+    return true;
+}
+
+void Client::DisconnectFromServer()
+{
+    if (m_pServerConnection)
+    {
+        std::cout << "Disconnecting from " << m_pServerConnection->address.host << " | " << m_pServerConnection->address.port << "...\n";
+        enet_peer_disconnect(m_pServerConnection, 0);
+    }
+}
+
+bool Client::SendMsgToServer(const char* _message)
+{
+    ENetPacket* packet = enet_packet_create(_message, strlen(_message) + 1, ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(m_pServerConnection, 0, packet);
+    return true;
+}
+
+bool Client::SendDataToServer(Package _packageToSend)
+{
+    const char* message = "Hello server !";
+    ENetPacket* packet = enet_packet_create(message, strlen(message) + 1, ENET_PACKET_FLAG_RELIABLE);
+    enet_peer_send(m_pServerConnection, 0, packet);
+    return true;
 }
