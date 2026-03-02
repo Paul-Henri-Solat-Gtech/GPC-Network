@@ -9,14 +9,14 @@ class Network
 public:
 	Network() = default;
 	
-	bool Init();
+	bool Init(int _serverPort);
 	void Close();
 
 	void ServerLoop();
 
 protected:
 	ENetAddress m_address;
-	ENetHost* m_server;
+	ENetHost* m_pServer;
 
 private:
 

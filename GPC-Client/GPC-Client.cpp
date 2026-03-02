@@ -1,6 +1,5 @@
-// GPC-Client.cpp
-
 /*
+GPC-Client.cpp :
 Both the host and the p2 will use this class to be created and join the server.
 */
 
@@ -22,7 +21,7 @@ int main()
     Client testClient;
     if (testClient.Init()) 
     {
-        testClient.ConnectingToEnetServer();
+        testClient.ConnectingTo("127.0.0.1", 54321);
     }
 
     // Program END

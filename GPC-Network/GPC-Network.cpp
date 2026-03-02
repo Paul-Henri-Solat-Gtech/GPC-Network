@@ -1,6 +1,5 @@
-// GPC-Network.cpp
-
 /*
+GPC-Network.cpp :
 To be clean, even if the p1 is the host the server part and client part are separated.
 */
 
@@ -22,7 +21,7 @@ int main()
 	// Network INIT
 	Network testNetwork;
 
-	if (testNetwork.Init())
+	if (testNetwork.Init(54321))
 	{
 		testNetwork.ServerLoop();
 		testNetwork.Close();

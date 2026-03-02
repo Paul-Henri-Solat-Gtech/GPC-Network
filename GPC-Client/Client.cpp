@@ -2,9 +2,9 @@
 
 bool Client::Init() 
 {
-    m_client = enet_host_create(NULL,1,2,0,0);
+    m_pClient = enet_host_create(NULL,1,2,0,0);
 
-    if (m_client == NULL)
+    if (m_pClient == NULL)
     {
         fprintf(stderr, "An error occurred while trying to create an ENet client host.\n");
         exit(EXIT_FAILURE);
@@ -17,24 +17,24 @@ bool Client::Init()
 
 void Client::Close()
 {
-    if (m_client != NULL)
+    if (m_pClient != NULL)
     {
         std::cout << "Closing session...\n";
-        enet_host_destroy(m_client);
+        enet_host_destroy(m_pClient);
     }
 }
 
-void Client::ConnectingToEnetServer()
+void Client::ConnectingTo(const char* _addressIP, int _addressPort)
 {
     ENetAddress address;
-    enet_address_set_host(&address, "127.0.0.1");
-    address.port = 54321;
+    enet_address_set_host(&address, _addressIP);
+    address.port = _addressPort;
 
-    ENetPeer* peer = enet_host_connect(m_client, &address, 2, 0);
+    ENetPeer* peer = enet_host_connect(m_pClient, &address, 2, 0);
     if (!peer)
     {
         std::cerr << "Connection failed to server." << std::endl;
-        enet_host_destroy(m_client);
+        enet_host_destroy(m_pClient);
         return;
     }
 
@@ -43,7 +43,7 @@ void Client::ConnectingToEnetServer()
     bool connected = false;
     for (int i = 0; i < 10 && !connected; ++i)
     {
-        while (enet_host_service(m_client, &event, 1000) > 0)
+        while (enet_host_service(m_pClient, &event, 1000) > 0)
         {
             if (event.type == ENET_EVENT_TYPE_CONNECT)
             {

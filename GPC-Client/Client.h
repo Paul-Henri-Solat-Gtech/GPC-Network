@@ -12,10 +12,10 @@ public:
 	bool Init();
 	void Close();
 
-	void ConnectingToEnetServer();
+	void ConnectingTo(const char* _addressIP, int _addressPort);
 
 protected:
-	ENetHost* m_client;
+	ENetHost* m_pClient;
 
 private:
 

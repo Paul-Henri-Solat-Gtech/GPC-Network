@@ -1,12 +1,12 @@
 #include "Network.h"
 
-bool Network::Init()
+bool Network::Init(int _serverPort)
 {
 	m_address.host = ENET_HOST_ANY;
-	m_address.port = 54321;
-    m_server = enet_host_create(&m_address,32,2,0,0);
+	m_address.port = _serverPort;
+    m_pServer = enet_host_create(&m_address,32,2,0,0);
 
-    if (m_server == NULL)
+    if (m_pServer == NULL)
     {
         fprintf(stderr, "An error occurred while trying to create an ENet server host.\n");
         exit(EXIT_FAILURE);
@@ -18,10 +18,10 @@ bool Network::Init()
 
 void Network::Close()
 {
-    if (m_server != NULL)
+    if (m_pServer != NULL)
     {
         std::cout << "Closing server...\n";
-        enet_host_destroy(m_server);
+        enet_host_destroy(m_pServer);
     }
 }
 
@@ -30,7 +30,7 @@ void Network::ServerLoop()
     ENetEvent event;
     while (true)
     {
-        while (enet_host_service(m_server, &event, 1000) > 0)
+        while (enet_host_service(m_pServer, &event, 1000) > 0)
         {
             switch (event.type)
             {
