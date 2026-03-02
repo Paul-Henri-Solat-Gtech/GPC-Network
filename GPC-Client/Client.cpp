@@ -50,7 +50,7 @@ bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
             {
                 std::cout << "Succesfully connected to Enet Server !" << std::endl;
                 connected = true;
-                //SendMsgToServer("bruh"); 
+                SendMsgToServer("bruh"); 
             }
         }
         if (!connected) std::cout << "Connection Try " << i + 1 << "/" << maxTries << "...\n";

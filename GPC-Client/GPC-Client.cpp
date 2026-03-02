@@ -21,12 +21,14 @@ int main()
     Client testClient;
     if (testClient.Init()) 
     {
-        if (testClient.ConnectingTo("127.0.0.1", 54321)) 
+        if(testClient.ConnectingTo("127.0.0.1", 54321)) 
         {
-            testClient.SendMsgToServer("HI !");
+            if (testClient.SendMsgToServer("HI !")) 
+            {
+                testClient.DisconnectFromServer();
+                testClient.Close();
+            }
         }
-        testClient.DisconnectFromServer();
-        testClient.Close();
     }
 
     // Program END
