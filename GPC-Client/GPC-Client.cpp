@@ -23,6 +23,9 @@ int main()
     {
         if(testClient.ConnectingTo("127.0.0.1", 54321)) 
         {
+
+         //   testClient.SendDataToServer(testpckgp);
+
             if (testClient.SendMsgToServer("HI !")) 
             {
                 testClient.DisconnectFromServer();
