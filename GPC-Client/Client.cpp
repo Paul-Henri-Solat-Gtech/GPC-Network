@@ -128,7 +128,7 @@ bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
 
 				//memcpy(m_mapSyncVar[package->name], package->data, package->dataSize);
 
-				std::cout << "Recieved Package : " << event.packet->data << std::endl;
+				std::cout << "Server sent : " << event.packet->data << std::endl;
 
 				enet_packet_destroy(event.packet);
 
@@ -157,6 +157,7 @@ void Client::DisconnectFromServer()
 	{
 		std::cout << "Disconnecting from " << m_pServerConnection->address.host << " | " << m_pServerConnection->address.port << "...\n";
 		enet_peer_disconnect(m_pServerConnection, 0);
+		Close();
 	}
 }
 
