@@ -64,6 +64,7 @@ void Client::ServerLoop()
 
 					std::cout << "Recieved Package : " << event.packet->data << std::endl;
 					SendMsgToClients("test");
+					ShowSyncVars();
 					enet_packet_destroy(event.packet);
 					break;
 				default:
@@ -88,6 +89,58 @@ bool Client::SendMsgToClients(const char* _message)
 	}
 
 	return true;
+}
+
+void Client::ShowSyncVars()
+{
+	std::string out;
+	out += "---SyncVars---\n";
+
+	auto& registry = SyncRegistry::Instance().Get();
+
+	if (registry.empty())
+	{
+		std::cout << "[ShowSyncVars] registry empty!\n";
+		out += "registry empty\n";
+	}
+
+	for (auto& syncVar : registry)
+	{
+		const std::string& name = syncVar.first;
+		const SyncEntry& entry = syncVar.second;
+
+		// debug serveur
+		std::cout << "[ShowSyncVars] " << name << " type=" << static_cast<int>(entry.type)
+			<< " size=" << entry.size << " ptr=" << entry.data << "\n";
+
+		out += name;
+		out += "=";
+
+		switch (entry.type)
+		{
+		case SyncType::INT:
+			out += std::to_string(*static_cast<int*>(entry.data));
+			break;
+		case SyncType::FLOAT:
+			out += std::to_string(*static_cast<float*>(entry.data));
+			break;
+		case SyncType::BOOL:
+			out += (*static_cast<bool*>(entry.data)) ? "true" : "false";
+			break;
+		case SyncType::STRING:
+			out += *static_cast<std::string*>(entry.data);
+			break;
+		default:
+			out += "Unknown";
+		}
+
+		out += "\n";
+	}
+
+	out += "--------------\n";
+
+	// Envoi d'un seul paquet contenant tout
+	SendMsgToClients(out.c_str());
 }
 
 bool Client::ConnectingTo(const char* _addressIP, int _addressPort)

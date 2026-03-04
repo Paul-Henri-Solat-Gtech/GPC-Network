@@ -10,8 +10,8 @@ To be clean, even if the p1 is the host the server part and client part are sepa
 
 int main()
 {
-	SyncVar(int, "testVal") testVal = 10;
-	testVal = 55;
+	SyncVar(int, "PlayerHp") playerHp = 10;
+	playerHp = 55;
 
 	// Enet INIT
 	if (enet_initialize() != 0)
@@ -27,7 +27,7 @@ int main()
 	if (testNetwork.Init(true, 54321))
 	{
 		testNetwork.ServerLoop();
-		testNetwork.Close();
+		//testNetwork.Close();
 	}
 
 	// Program END

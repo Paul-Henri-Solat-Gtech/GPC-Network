@@ -4,6 +4,8 @@
 #include <enet/enet.h>
 #include <iostream>
 #include <unordered_map>
+#include <type_traits>
+#include <string>
 
 class Client;
 
@@ -14,6 +16,23 @@ struct Package
 	char data[255];
 };
 
+enum class SyncType
+{
+	INT,
+	FLOAT,
+	STRING,
+	BOOL,
+
+	DEFAULT
+};
+
+struct SyncEntry
+{
+	void* data = nullptr;
+	SyncType type = SyncType::DEFAULT;
+	size_t size = 0;
+};
+
 struct SyncRegistry
 {
 	static SyncRegistry& Instance()
@@ -22,9 +41,9 @@ struct SyncRegistry
 		return instance;
 	}
 
-	void Register(const std::string& name, void* ptr)
+	void Register(const std::string& name, const SyncEntry& entry)
 	{
-		m_registry[name] = ptr;
+		m_registry.insert_or_assign(name, entry);
 	}
 
 	void Unregister(const std::string& name)
@@ -32,13 +51,13 @@ struct SyncRegistry
 		m_registry.erase(name);
 	}
 
-	std::unordered_map<std::string, void*>& Get()
+	std::unordered_map<std::string, SyncEntry>& Get()
 	{
 		return m_registry;
 	}
 
 private:
-	std::unordered_map<std::string, void*> m_registry;
+	std::unordered_map<std::string, SyncEntry> m_registry;
 };
 
 template <typename T, const char* Name>
@@ -47,7 +66,12 @@ struct Syncvar
 public:
 	Syncvar(T data) : m_Data(data)
 	{
-		SyncRegistry::Instance().Register(Name, this);
+		SyncEntry entry;
+		entry.data = &m_Data;
+		entry.size = sizeof(T);
+		entry.type = DeduceType();
+
+		SyncRegistry::Instance().Register(Name, entry);
 	}
 
 	~Syncvar()
@@ -77,13 +101,27 @@ public:
 		return &m_Data;
 	}
 
+protected:
+	static SyncType DeduceType()
+	{
+		if constexpr (std::is_same_v<T, int>)
+			return SyncType::INT;
+		else if constexpr (std::is_same_v<T, float>)
+			return SyncType::FLOAT;
+		else if constexpr (std::is_same_v<T, bool>)
+			return SyncType::BOOL;
+		else if constexpr (std::is_same_v<T, std::string>)
+			return SyncType::STRING;
+		return SyncType::DEFAULT;
+	}
+
 private:
 	T m_Data;
 	const char* m_name = Name;
 };
 
 #define SyncVar(type, name) static const char __name__[] = name; Syncvar<type, __name__>
-
+//#define SyncVar(type, name) \ static const char __name__[] = name; \ Syncvar<type, __name__>
 class Client
 {
 public:
@@ -95,6 +133,7 @@ public:
 	// Server Host
 	void ServerLoop();
 	bool SendMsgToClients(const char* _message);
+	void ShowSyncVars();
 
 	// Simple Client
 	bool ConnectingTo(const char* _addressIP, int _addressPort);
@@ -118,7 +157,7 @@ protected:
 	ENetPeer* m_pServerConnection = nullptr;
 	std::vector<ENetPeer*> m_clients;
 
-	std::unordered_map<std::string, void*> m_mapSyncVar;
+	//std::unordered_map<std::string, void*> m_mapSyncVar;
 
 private:
 	bool m_isServer = false;

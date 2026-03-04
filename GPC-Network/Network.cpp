@@ -53,19 +53,27 @@ void Network::ServerLoop()
 				switch (event.type)
 				{
 				case ENET_EVENT_TYPE_CONNECT:
+				{
 					std::cout << "New Client has joinned !" << std::endl;
 					m_clients.push_back(event.peer);
 					break;
+				}
+				case ENET_EVENT_TYPE_DISCONNECT:
+				{
+					std::cout << "Client disconnected !" << std::endl;
+					/*auto it = std::remove(m_clients.begin(),m_clients.end(),event.peer);
+					m_clients.erase(it, m_clients.end());*/
+					break;
+				}
 				case ENET_EVENT_TYPE_RECEIVE:
-
+				{
 					package = reinterpret_cast<Package*>(event.packet->data);
-
-					//memcpy(m_mapSyncVar[package->name], package->data, package->dataSize);
-
 					std::cout << "Recieved Package : " << event.packet->data << std::endl;
 					SendMsgToClients("test");
+					ShowSyncVars();
 					enet_packet_destroy(event.packet);
 					break;
+				}
 				default:
 					break;
 				}
@@ -87,7 +95,52 @@ bool Network::SendMsgToClients(const char* _message)
 		enet_host_flush(m_pHost);
 	}
 
+	enet_host_flush(m_pHost);
 	return true;
+}
+
+void Network::ShowSyncVars()
+{
+	SendMsgToClients("---SyncVars---");
+
+	auto& registry = SyncRegistry::Instance().Get();
+
+	if (registry.empty())
+	{
+		std::cout << "[ShowSyncVars] registry empty!\n";
+	}
+
+	for (auto& syncVar : registry)
+	{
+		std::string name = syncVar.first;
+		const SyncEntry& entry = syncVar.second;
+
+		// PRINT SERVER-SIDE (debug)
+		std::cout << "[ShowSyncVars] " << name << " type=" << static_cast<int>(entry.type) << " size=" << entry.size << " ptr=" << entry.data << "\n";
+
+		// envoie vers clients
+		SendMsgToClients(name.c_str());
+		SendMsgToClients("=");
+		switch (entry.type)
+		{
+		case SyncType::INT:
+			SendMsgToClients(std::to_string(*static_cast<int*>(entry.data)).c_str());
+			break;
+		case SyncType::FLOAT:
+			SendMsgToClients(std::to_string(*static_cast<float*>(entry.data)).c_str());
+			break;
+		case SyncType::BOOL:
+			SendMsgToClients((*static_cast<bool*>(entry.data)) ? "true" : "false");
+			break;
+		case SyncType::STRING:
+			SendMsgToClients(static_cast<std::string*>(entry.data)->c_str());
+			break;
+		default:
+			SendMsgToClients("Unknown");
+		}
+	}
+
+	SendMsgToClients("--------------");
 }
 
 bool Network::ConnectingTo(const char* _addressIP, int _addressPort)
@@ -201,16 +254,15 @@ void Network::CommandManager(std::string command)
 void Network::SyncVarsToClients(const std::string& name, const void* data, size_t size)
 {
 	Package pkg{};
-
 	strncpy_s(pkg.name, name.c_str(), sizeof(pkg.name));
-	pkg.dataSize = size;
-
+	pkg.dataSize = static_cast<int>(size);
 	memcpy(pkg.data, data, size);
-
-	ENetPacket* packet = enet_packet_create(&pkg, sizeof(pkg), ENET_PACKET_FLAG_RELIABLE);
 
 	for (auto client : m_clients)
 	{
+		ENetPacket* packet = enet_packet_create(&pkg, sizeof(pkg), ENET_PACKET_FLAG_RELIABLE);
 		enet_peer_send(client, 0, packet);
 	}
+
+	enet_host_flush(m_pHost);
 }
