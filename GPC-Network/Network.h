@@ -89,10 +89,20 @@ class Network
 public:
 	Network() = default;
 	
-	bool Init(int _serverPort);
+	bool Init(bool _isServer = false, int _serverPort = 0);
 	void Close();
 
+	// Server Host
 	void ServerLoop();
+	bool SendMsgToClients(const char* _message);
+
+	// Simple Client
+	bool ConnectingTo(const char* _addressIP, int _addressPort);
+	void DisconnectFromServer();
+
+	bool SendMsgToServer();
+	bool SendMsgToServer(const char* _message);
+	void CommandManager(std::string command);
 
 	void SyncVarsToClients(const std::string& name, const void* data, size_t size);
 
@@ -104,13 +114,14 @@ public:
 
 protected:
 	ENetAddress m_address;
-	ENetHost* m_pServer;
+	ENetHost* m_pHost = nullptr; // can be host(server) or client
+	ENetPeer* m_pServerConnection = nullptr;
 	std::vector<ENetPeer*> m_clients;
 
 	std::unordered_map<std::string, void*> m_mapSyncVar;
 
 private:
-
+	bool m_isServer = false;
 };
 
 #endif

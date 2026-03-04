@@ -17,19 +17,17 @@ int main()
         return EXIT_FAILURE;
     }
 
-    // Network INIT
+    // Client INIT
     Client testClient;
     if (testClient.Init()) 
     {
         if(testClient.ConnectingTo("127.0.0.1", 54321)) 
         {
-
-         //   testClient.SendDataToServer(testpckgp);
-
+            //testClient.ClientLoop();
             if (testClient.SendMsgToServer("HI !")) 
             {
-                testClient.DisconnectFromServer();
-                testClient.Close();
+                //testClient.DisconnectFromServer();
+                //testClient.Close();
             }
         }
     }

@@ -21,10 +21,10 @@ int main()
 	}
 	std::cout << "Enet Program launched.\n";
 
-	// Network INIT
+	// Server INIT
 	Network testNetwork;
 
-	if (testNetwork.Init(54321))
+	if (testNetwork.Init(true, 54321))
 	{
 		testNetwork.ServerLoop();
 		testNetwork.Close();
