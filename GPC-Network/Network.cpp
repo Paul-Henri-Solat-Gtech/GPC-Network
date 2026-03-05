@@ -71,6 +71,9 @@ void Network::ServerLoop()
 					std::cout << "Recieved Package : " << event.packet->data << std::endl;
 					SendMsgToClients("test");
 					ShowSyncVars();
+
+
+
 					enet_packet_destroy(event.packet);
 					break;
 				}
@@ -123,17 +126,17 @@ void Network::ShowSyncVars()
 		SendMsgToClients("=");
 		switch (entry.type)
 		{
+		case SyncType::STRING:
+			SendMsgToClients(static_cast<std::string*>(entry.data)->c_str());
+			break;
+		case SyncType::BOOL:
+			SendMsgToClients((*static_cast<bool*>(entry.data)) ? "true" : "false");
+			break;
 		case SyncType::INT:
 			SendMsgToClients(std::to_string(*static_cast<int*>(entry.data)).c_str());
 			break;
 		case SyncType::FLOAT:
 			SendMsgToClients(std::to_string(*static_cast<float*>(entry.data)).c_str());
-			break;
-		case SyncType::BOOL:
-			SendMsgToClients((*static_cast<bool*>(entry.data)) ? "true" : "false");
-			break;
-		case SyncType::STRING:
-			SendMsgToClients(static_cast<std::string*>(entry.data)->c_str());
 			break;
 		default:
 			SendMsgToClients("Unknown");
@@ -141,6 +144,60 @@ void Network::ShowSyncVars()
 	}
 
 	SendMsgToClients("--------------");
+}
+
+void Network::PrintSyncVar()
+{
+	std::cout << "---SyncVars---\n";
+
+	auto& registry = SyncRegistry::Instance().Get();
+
+	if (registry.empty())
+	{
+		std::cout << "[ShowSyncVars] registry empty!\n";
+	}
+
+	for (auto& syncVar : registry)
+	{
+		std::string name = syncVar.first;
+		const SyncEntry& entry = syncVar.second;
+
+		std::cout << name.c_str() << ": ";
+		switch (entry.type)
+		{
+		case SyncType::INT:
+		{
+			std::cout << "INT=";
+			std::cout << std::to_string(*static_cast<int*>(entry.data)).c_str();
+			break;
+		}
+		case SyncType::FLOAT:
+		{
+			std::cout << "FLOAT=";
+			std::cout << std::to_string(*static_cast<float*>(entry.data)).c_str();
+			break;
+		}
+		case SyncType::BOOL:
+		{
+			std::cout << "BOOL=";
+			bool value = *static_cast<bool*>(entry.data);
+			std::cout << (value ? "true" : "false");
+			break;
+		}
+		case SyncType::STRING:
+		{
+			std::cout << "STRING=";
+			std::cout << static_cast<std::string*>(entry.data)->c_str();
+			break;
+		}
+		default:
+			std::cout << "ERROR ";
+		}
+
+		std::cout << " size=" << entry.size << std::endl;
+	}
+
+	std::cout << "------------" << std::endl;
 }
 
 bool Network::ConnectingTo(const char* _addressIP, int _addressPort)

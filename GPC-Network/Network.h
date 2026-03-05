@@ -64,7 +64,7 @@ template <typename T, const char* Name>
 struct Syncvar
 {
 public:
-	Syncvar(T data) : m_Data(data) 
+	Syncvar(const T& data) : m_Data(data)
 	{ 
 		SyncEntry entry;
 		entry.data = &m_Data;
@@ -120,8 +120,14 @@ private:
 	const char* m_name = Name;
 };
 
-#define SyncVar(type, name) static const char __name__[] = name; Syncvar<type, __name__>
-//#define SyncVar(type, name) \ static const char __name__[] = name; \ Syncvar<type, __name__>
+//#define SyncVar(type, name) static const char __name__[] = name; Syncvar<type, __name__>
+#define CONCAT_IMPL(x,y) x##y
+#define CONCAT(x,y) CONCAT_IMPL(x,y)
+
+#define SyncVar(type, name) \
+static const char CONCAT(__name__, __LINE__)[] = name; \
+Syncvar<type, CONCAT(__name__, __LINE__)>
+
 class Network
 {
 public:
@@ -134,6 +140,7 @@ public:
 	void ServerLoop();
 	bool SendMsgToClients(const char* _message);
 	void ShowSyncVars();
+	void PrintSyncVar();
 
 	// Simple Client
 	bool ConnectingTo(const char* _addressIP, int _addressPort);

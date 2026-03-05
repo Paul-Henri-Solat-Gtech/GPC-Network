@@ -121,7 +121,7 @@ private:
 };
 
 #define SyncVar(type, name) static const char __name__[] = name; Syncvar<type, __name__>
-//#define SyncVar(type, name) \ static const char __name__[] = name; \ Syncvar<type, __name__>
+
 class Client
 {
 public:
@@ -157,8 +157,7 @@ protected:
 	ENetPeer* m_pServerConnection = nullptr;
 	std::vector<ENetPeer*> m_clients;
 
-	//std::unordered_map<std::string, void*> m_mapSyncVar;
-
+	std::unordered_map<std::string, SyncEntry> m_mapSyncVar;
 private:
 	bool m_isServer = false;
 };

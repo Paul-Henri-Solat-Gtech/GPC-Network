@@ -10,8 +10,13 @@ To be clean, even if the p1 is the host the server part and client part are sepa
 
 int main()
 {
-	SyncVar(int, "PlayerHp") playerHp = 10;
+	// var sync with clients
+	SyncVar(std::string, "Name") playerName("Player1");
+	SyncVar(int, "HP") playerHp = 10;
 	playerHp = 55;
+	SyncVar(float, "PosX") playerPosX = 5.56f;
+	SyncVar(bool, "IsDead") playerIsDead = false;
+
 
 	// Enet INIT
 	if (enet_initialize() != 0)
@@ -26,6 +31,7 @@ int main()
 
 	if (testNetwork.Init(true, 54321))
 	{
+		testNetwork.PrintSyncVar();
 		testNetwork.ServerLoop();
 		//testNetwork.Close();
 	}
