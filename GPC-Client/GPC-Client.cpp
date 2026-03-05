@@ -28,7 +28,7 @@ int main()
             if (testClient.SendMsgToServer("HI ! Im going to send you my data(client).")) 
             {
                 //testClient.SendSyncVar();
-                testClient.SendMsgToServer();
+                //testClient.SendMsgToServer();
             }
         }
     }

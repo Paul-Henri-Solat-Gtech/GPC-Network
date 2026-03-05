@@ -1,5 +1,6 @@
 #include "Client.h"
 
+
 bool Client::Init(bool _isServer, int _serverPort)
 {
 	m_isServer = _isServer;
@@ -20,13 +21,14 @@ bool Client::Init(bool _isServer, int _serverPort)
 		std::cout << "Client Initialized !\n";
 	}
 
-
 	if (m_pHost == NULL)
 	{
 		fprintf(stderr, "An error occurred while trying to create an ENet server host.\n");
 		exit(EXIT_FAILURE);
 		return false;
 	}
+
+	m_isRunning = true;
 
 	return true;
 }
@@ -35,6 +37,12 @@ void Client::Close()
 {
 	if (m_pHost != NULL)
 	{
+		//if (m_networkThread.joinable())
+		//	m_networkThread.join();
+
+		//if (m_inputThread.joinable())
+		//	m_inputThread.join();
+
 		std::cout << "Closing session...\n";
 		enet_host_destroy(m_pHost);
 	}
@@ -45,10 +53,10 @@ void Client::ServerLoop()
 	if (m_isServer)
 	{
 		ENetEvent event;
-		Package* package = nullptr;
-		while (true)
+
+		while (m_isRunning)
 		{
-			while (enet_host_service(m_pHost, &event, 1000) > 0)
+			while (enet_host_service(m_pHost, &event, 10) > 0)
 			{
 				switch (event.type)
 				{
@@ -83,6 +91,7 @@ void Client::ServerLoop()
 						std::cout << "Client msg : " << event.packet->data << std::endl;
 					}
 					enet_packet_destroy(event.packet);
+					break;
 				}
 				default:
 					break;
@@ -107,50 +116,6 @@ bool Client::SendMsgToClients(const char* _message)
 
 	enet_host_flush(m_pHost);
 	return true;
-}
-
-void Client::ShowSyncVars()
-{
-	SendMsgToClients("---SyncVars---");
-
-	auto& registry = SyncRegistry::Instance().Get();
-
-	if (registry.empty())
-	{
-		std::cout << "[ShowSyncVars] registry empty!\n";
-	}
-
-	for (auto& syncVar : registry)
-	{
-		std::string name = syncVar.first;
-		const SyncEntry& entry = syncVar.second;
-
-		// PRINT SERVER-SIDE (debug)
-		std::cout << "[ShowSyncVars] " << name << " type=" << static_cast<int>(entry.type) << " size=" << entry.size << " ptr=" << entry.data << "\n";
-
-		// envoie vers clients
-		SendMsgToClients(name.c_str());
-		SendMsgToClients("=");
-		switch (entry.type)
-		{
-		case SyncType::STRING:
-			SendMsgToClients(static_cast<std::string*>(entry.data)->c_str());
-			break;
-		case SyncType::BOOL:
-			SendMsgToClients((*static_cast<bool*>(entry.data)) ? "true" : "false");
-			break;
-		case SyncType::INT:
-			SendMsgToClients(std::to_string(*static_cast<int*>(entry.data)).c_str());
-			break;
-		case SyncType::FLOAT:
-			SendMsgToClients(std::to_string(*static_cast<float*>(entry.data)).c_str());
-			break;
-		default:
-			SendMsgToClients("Unknown");
-		}
-	}
-
-	SendMsgToClients("--------------");
 }
 
 void Client::PrintSyncVar()
@@ -270,21 +235,32 @@ bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
 		return false;
 	}
 
-	// Wait for connection
+	ClientLoop();
+	//m_networkThread = std::thread(&Network::ClientLoop, this);
+	//m_inputThread = std::thread(&Network::SendMsgToServerA, this);
+	//std::thread NetworkLoopThread(&Network::ClientLoop, this);
+	//std::thread NetworkMsgThread(&Network::SendMsgToServerA, this);
+	//NetworkLoopThread.detach();
+	//NetworkMsgThread.detach();
+	//std::cout << "Ok threads can be COOL" << std::endl;
+
+	return true;
+}
+
+void Client::ClientLoop()
+{
 	ENetEvent event;
-	Package* package = nullptr;
-	bool connected = false;
-	int maxTries = 10;
-	for (int i = 0; i < maxTries && !connected; ++i)
+
+	while (m_isRunning)
 	{
-		while (enet_host_service(m_pHost, &event, 1000) > 0)
+		while (enet_host_service(m_pHost, &event, 10) > 0)
 		{
 			switch (event.type)
 			{
 			case ENET_EVENT_TYPE_CONNECT:
 			{
 				std::cout << "Succesfully connected to Enet Server !" << std::endl;
-				connected = true;
+				m_isConnected = true;
 				SendMsgToServer("bruh");
 				break;
 			}
@@ -309,15 +285,8 @@ bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
 				break;
 			}
 		}
-		if (!connected) std::cout << "Connection Try " << i + 1 << "/" << maxTries << "...\n";
-	}
-	if (!connected)
-	{
-		std::cerr << "Failed connection (timeout)." << std::endl;
-		return false;
 	}
 
-	return true;
 }
 
 void Client::DisconnectFromServer()
@@ -330,7 +299,7 @@ void Client::DisconnectFromServer()
 	}
 }
 
-bool Client::SendMsgToServer()
+bool Client::SendMsgToServerA()
 {
 	std::cout << "Enter msg: ";
 	std::string msg;

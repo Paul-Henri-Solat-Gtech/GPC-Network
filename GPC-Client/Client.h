@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <type_traits>
 #include <string>
+#include <thread>
 
 class Client;
 
@@ -141,15 +142,15 @@ public:
 	// Server Host
 	void ServerLoop();
 	bool SendMsgToClients(const char* _message);
-	void ShowSyncVars();
 	void PrintSyncVar();
 	void SyncVarsToClients();
 
 	// Simple Client
 	bool ConnectingTo(const char* _addressIP, int _addressPort);
+	void ClientLoop();
 	void DisconnectFromServer();
 
-	bool SendMsgToServer();
+	bool SendMsgToServerA();
 	bool SendMsgToServer(const char* _message);
 	void CommandManager(std::string command);
 	void ReceiveSyncVar(Package* package);
@@ -169,6 +170,11 @@ protected:
 
 private:
 	bool m_isServer = false;
+	bool m_isRunning = false;
+	bool m_isConnected = false;
+	std::thread m_networkThread;
+	std::thread m_inputThread;
+
 };
 
 #endif

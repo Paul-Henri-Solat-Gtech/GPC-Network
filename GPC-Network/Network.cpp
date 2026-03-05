@@ -1,5 +1,6 @@
 #include "Network.h"
 
+
 bool Network::Init(bool _isServer, int _serverPort)
 {
 	m_isServer = _isServer;
@@ -17,9 +18,8 @@ bool Network::Init(bool _isServer, int _serverPort)
 	{
 		m_pHost = enet_host_create(NULL, 1, 2, 0, 0);
 
-		std::cout << "Client Initialized !\n";
+		std::cout << "Network Initialized !\n";
 	}
-
 
 	if (m_pHost == NULL)
 	{
@@ -28,6 +28,8 @@ bool Network::Init(bool _isServer, int _serverPort)
 		return false;
 	}
 
+	m_isRunning = true;
+
 	return true;
 }
 
@@ -35,6 +37,12 @@ void Network::Close()
 {
 	if (m_pHost != NULL)
 	{
+		//if (m_networkThread.joinable())
+		//	m_networkThread.join();
+
+		//if (m_inputThread.joinable())
+		//	m_inputThread.join();
+
 		std::cout << "Closing session...\n";
 		enet_host_destroy(m_pHost);
 	}
@@ -45,16 +53,16 @@ void Network::ServerLoop()
 	if (m_isServer)
 	{
 		ENetEvent event;
-		Package* package = nullptr;
-		while (true)
+
+		while (m_isRunning)
 		{
-			while (enet_host_service(m_pHost, &event, 1000) > 0)
+			while (enet_host_service(m_pHost, &event, 10) > 0)
 			{
 				switch (event.type)
 				{
 				case ENET_EVENT_TYPE_CONNECT:
 				{
-					std::cout << "New Client has joinned !" << std::endl;
+					std::cout << "New Network has joinned !" << std::endl;
 					m_clients.push_back(event.peer);
 
 					SendMsgToClients("I will give you my sync vars.");
@@ -64,8 +72,8 @@ void Network::ServerLoop()
 				}
 				case ENET_EVENT_TYPE_DISCONNECT:
 				{
-					std::cout << "Client disconnected !" << std::endl;
-					auto it = std::remove(m_clients.begin(),m_clients.end(),event.peer);
+					std::cout << "Network disconnected !" << std::endl;
+					auto it = std::remove(m_clients.begin(), m_clients.end(), event.peer);
 					m_clients.erase(it, m_clients.end());
 					break;
 				}
@@ -80,9 +88,10 @@ void Network::ServerLoop()
 					}
 					else
 					{
-						std::cout << "Client msg : " << event.packet->data << std::endl;
+						std::cout << "Network msg : " << event.packet->data << std::endl;
 					}
 					enet_packet_destroy(event.packet);
+					break;
 				}
 				default:
 					break;
@@ -98,59 +107,15 @@ void Network::ServerLoop()
 
 bool Network::SendMsgToClients(const char* _message)
 {
-	for (auto client : m_clients)
+	for (auto Network : m_clients)
 	{
 		ENetPacket* packet = enet_packet_create(_message, strlen(_message) + 1, ENET_PACKET_FLAG_RELIABLE);
-		enet_peer_send(client, 0, packet);
+		enet_peer_send(Network, 0, packet);
 		enet_host_flush(m_pHost);
 	}
 
 	enet_host_flush(m_pHost);
 	return true;
-}
-
-void Network::ShowSyncVars()
-{
-	SendMsgToClients("---SyncVars---");
-
-	auto& registry = SyncRegistry::Instance().Get();
-
-	if (registry.empty())
-	{
-		std::cout << "[ShowSyncVars] registry empty!\n";
-	}
-
-	for (auto& syncVar : registry)
-	{
-		std::string name = syncVar.first;
-		const SyncEntry& entry = syncVar.second;
-
-		// PRINT SERVER-SIDE (debug)
-		std::cout << "[ShowSyncVars] " << name << " type=" << static_cast<int>(entry.type) << " size=" << entry.size << " ptr=" << entry.data << "\n";
-
-		// envoie vers clients
-		SendMsgToClients(name.c_str());
-		SendMsgToClients("=");
-		switch (entry.type)
-		{
-		case SyncType::STRING:
-			SendMsgToClients(static_cast<std::string*>(entry.data)->c_str());
-			break;
-		case SyncType::BOOL:
-			SendMsgToClients((*static_cast<bool*>(entry.data)) ? "true" : "false");
-			break;
-		case SyncType::INT:
-			SendMsgToClients(std::to_string(*static_cast<int*>(entry.data)).c_str());
-			break;
-		case SyncType::FLOAT:
-			SendMsgToClients(std::to_string(*static_cast<float*>(entry.data)).c_str());
-			break;
-		default:
-			SendMsgToClients("Unknown");
-		}
-	}
-
-	SendMsgToClients("--------------");
 }
 
 void Network::PrintSyncVar()
@@ -244,11 +209,11 @@ void Network::SyncVarsToClients()
 				memcpy(pkg.data, entry.data, sendSize);
 			}
 
-			for (auto client : m_clients)
+			for (auto Network : m_clients)
 			{
 				ENetPacket* packet = enet_packet_create(&pkg, sizeof(pkg), ENET_PACKET_FLAG_RELIABLE);
-				enet_peer_send(client, 0, packet);
-				std::cout << "Client" << client->connectID << " (syncing vars...)" << std::endl;
+				enet_peer_send(Network, 0, packet);
+				std::cout << "Network" << Network->connectID << " (syncing vars...)" << std::endl;
 			}
 		}
 
@@ -270,21 +235,32 @@ bool Network::ConnectingTo(const char* _addressIP, int _addressPort)
 		return false;
 	}
 
-	// Wait for connection
+	ClientLoop();
+	//m_networkThread = std::thread(&Network::ClientLoop, this);
+	//m_inputThread = std::thread(&Network::SendMsgToServerA, this);
+	//std::thread NetworkLoopThread(&Network::ClientLoop, this);
+	//std::thread NetworkMsgThread(&Network::SendMsgToServerA, this);
+	//NetworkLoopThread.detach();
+	//NetworkMsgThread.detach();
+	//std::cout << "Ok threads can be COOL" << std::endl;
+
+	return true;
+}
+
+void Network::ClientLoop()
+{
 	ENetEvent event;
-	Package* package = nullptr;
-	bool connected = false;
-	int maxTries = 10;
-	for (int i = 0; i < maxTries && !connected; ++i)
+
+	while (m_isRunning)
 	{
-		while (enet_host_service(m_pHost, &event, 1000) > 0)
+		while (enet_host_service(m_pHost, &event, 10) > 0)
 		{
 			switch (event.type)
 			{
 			case ENET_EVENT_TYPE_CONNECT:
 			{
 				std::cout << "Succesfully connected to Enet Server !" << std::endl;
-				connected = true;
+				m_isConnected = true;
 				SendMsgToServer("bruh");
 				break;
 			}
@@ -309,15 +285,8 @@ bool Network::ConnectingTo(const char* _addressIP, int _addressPort)
 				break;
 			}
 		}
-		if (!connected) std::cout << "Connection Try " << i + 1 << "/" << maxTries << "...\n";
-	}
-	if (!connected)
-	{
-		std::cerr << "Failed connection (timeout)." << std::endl;
-		return false;
 	}
 
-	return true;
 }
 
 void Network::DisconnectFromServer()
@@ -330,7 +299,7 @@ void Network::DisconnectFromServer()
 	}
 }
 
-bool Network::SendMsgToServer()
+bool Network::SendMsgToServerA()
 {
 	std::cout << "Enter msg: ";
 	std::string msg;
