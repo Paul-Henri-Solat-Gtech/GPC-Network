@@ -21,13 +21,14 @@ int main()
     Client testClient;
     if (testClient.Init()) 
     {
+        testClient.PrintSyncVar();
         if(testClient.ConnectingTo("127.0.0.1", 54321)) 
         {
             //testClient.ClientLoop();
-            if (testClient.SendMsgToServer("HI !")) 
+            if (testClient.SendMsgToServer("HI ! Im going to send you my data(client).")) 
             {
-                //testClient.DisconnectFromServer();
-                //testClient.Close();
+                //testClient.SendSyncVar();
+                testClient.SendMsgToServer();
             }
         }
     }

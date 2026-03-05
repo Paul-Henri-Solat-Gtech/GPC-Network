@@ -9,13 +9,6 @@
 
 class Network;
 
-struct Package
-{
-	char name[20];
-	int dataSize;
-	char data[255];
-};
-
 enum class SyncType
 {
 	INT,
@@ -26,11 +19,20 @@ enum class SyncType
 	DEFAULT
 };
 
+struct Package
+{
+	char name[20];
+	int dataSize;
+	char data[255];
+	SyncType type;
+};
+
 struct SyncEntry
 {
 	void* data = nullptr;
 	SyncType type = SyncType::DEFAULT;
 	size_t size = 0;
+	bool ownerAllocated = false;
 };
 
 struct SyncRegistry
@@ -83,12 +85,18 @@ public:
 	{
 		//logique reseau
 		//Network::Instance().SyncVarsToClients(Name,&m_Data,sizeof(T));
+		Network::Instance().SyncVarsToClients();
 	}
 
-	void operator=(T other)
+	Syncvar& operator=(const T& other)
 	{
-		m_Data = other;
-		OnChange();
+		if (m_Data != other)
+		{
+			m_Data = other;
+			OnChange();
+		}
+
+		return *this;
 	}
 
 	int Size() const
@@ -141,6 +149,7 @@ public:
 	bool SendMsgToClients(const char* _message);
 	void ShowSyncVars();
 	void PrintSyncVar();
+	void SyncVarsToClients();
 
 	// Simple Client
 	bool ConnectingTo(const char* _addressIP, int _addressPort);
@@ -149,8 +158,8 @@ public:
 	bool SendMsgToServer();
 	bool SendMsgToServer(const char* _message);
 	void CommandManager(std::string command);
-
-	void SyncVarsToClients(const std::string& name, const void* data, size_t size);
+	void ReceiveSyncVar(Package* package);
+	void SendSyncVar();
 
 	static Network& Instance()
 	{
@@ -163,8 +172,6 @@ protected:
 	ENetHost* m_pHost = nullptr; // can be host(server) or client
 	ENetPeer* m_pServerConnection = nullptr;
 	std::vector<ENetPeer*> m_clients;
-
-	std::unordered_map<std::string, SyncEntry> m_mapSyncVar;
 
 private:
 	bool m_isServer = false;

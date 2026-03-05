@@ -1,5 +1,5 @@
-#ifndef FOUNDRY_NETWORK__H_
-#define FOUNDRY_NETWORK__H_
+#ifndef FOUNDRY_CLIENT__H_
+#define FOUNDRY_CLIENT__H_
 
 #include <enet/enet.h>
 #include <iostream>
@@ -8,13 +8,6 @@
 #include <string>
 
 class Client;
-
-struct Package
-{
-	char name[20];
-	int dataSize;
-	char data[255];
-};
 
 enum class SyncType
 {
@@ -26,11 +19,20 @@ enum class SyncType
 	DEFAULT
 };
 
+struct Package
+{
+	char name[20];
+	int dataSize;
+	char data[255];
+	SyncType type;
+};
+
 struct SyncEntry
 {
 	void* data = nullptr;
 	SyncType type = SyncType::DEFAULT;
 	size_t size = 0;
+	bool ownerAllocated = false;
 };
 
 struct SyncRegistry
@@ -64,7 +66,7 @@ template <typename T, const char* Name>
 struct Syncvar
 {
 public:
-	Syncvar(T data) : m_Data(data)
+	Syncvar(const T& data) : m_Data(data)
 	{
 		SyncEntry entry;
 		entry.data = &m_Data;
@@ -82,7 +84,7 @@ public:
 	void OnChange()
 	{
 		//logique reseau
-		Client::Instance().SyncVarsToClients(Name, &m_Data, sizeof(T));
+		//Network::Instance().SyncVarsToClients(Name,&m_Data,sizeof(T));
 	}
 
 	void operator=(T other)
@@ -120,7 +122,13 @@ private:
 	const char* m_name = Name;
 };
 
-#define SyncVar(type, name) static const char __name__[] = name; Syncvar<type, __name__>
+//#define SyncVar(type, name) static const char __name__[] = name; Syncvar<type, __name__>
+#define CONCAT_IMPL(x,y) x##y
+#define CONCAT(x,y) CONCAT_IMPL(x,y)
+
+#define SyncVar(type, name) \
+static const char CONCAT(__name__, __LINE__)[] = name; \
+Syncvar<type, CONCAT(__name__, __LINE__)>
 
 class Client
 {
@@ -134,6 +142,8 @@ public:
 	void ServerLoop();
 	bool SendMsgToClients(const char* _message);
 	void ShowSyncVars();
+	void PrintSyncVar();
+	void SyncVarsToClients();
 
 	// Simple Client
 	bool ConnectingTo(const char* _addressIP, int _addressPort);
@@ -142,8 +152,8 @@ public:
 	bool SendMsgToServer();
 	bool SendMsgToServer(const char* _message);
 	void CommandManager(std::string command);
-
-	void SyncVarsToClients(const std::string& name, const void* data, size_t size);
+	void ReceiveSyncVar(Package* package);
+	void SendSyncVar();
 
 	static Client& Instance()
 	{
@@ -157,7 +167,6 @@ protected:
 	ENetPeer* m_pServerConnection = nullptr;
 	std::vector<ENetPeer*> m_clients;
 
-	std::unordered_map<std::string, SyncEntry> m_mapSyncVar;
 private:
 	bool m_isServer = false;
 };

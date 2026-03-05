@@ -53,20 +53,37 @@ void Client::ServerLoop()
 				switch (event.type)
 				{
 				case ENET_EVENT_TYPE_CONNECT:
+				{
 					std::cout << "New Client has joinned !" << std::endl;
 					m_clients.push_back(event.peer);
+
+					SendMsgToClients("I will give you my sync vars.");
+					SyncVarsToClients();
+
 					break;
+				}
+				case ENET_EVENT_TYPE_DISCONNECT:
+				{
+					std::cout << "Client disconnected !" << std::endl;
+					auto it = std::remove(m_clients.begin(), m_clients.end(), event.peer);
+					m_clients.erase(it, m_clients.end());
+					break;
+				}
 				case ENET_EVENT_TYPE_RECEIVE:
+				{
+					if (event.packet->dataLength == sizeof(Package))
+					{
+						Package* package = reinterpret_cast<Package*>(event.packet->data);
 
-					package = reinterpret_cast<Package*>(event.packet->data);
-
-					//memcpy(m_mapSyncVar[package->name], package->data, package->dataSize);
-
-					std::cout << "Recieved Package : " << event.packet->data << std::endl;
-					SendMsgToClients("test");
-					ShowSyncVars();
+						ReceiveSyncVar(package);
+						PrintSyncVar();
+					}
+					else
+					{
+						std::cout << "Client msg : " << event.packet->data << std::endl;
+					}
 					enet_packet_destroy(event.packet);
-					break;
+				}
 				default:
 					break;
 				}
@@ -88,59 +105,155 @@ bool Client::SendMsgToClients(const char* _message)
 		enet_host_flush(m_pHost);
 	}
 
+	enet_host_flush(m_pHost);
 	return true;
 }
 
 void Client::ShowSyncVars()
 {
-	std::string out;
-	out += "---SyncVars---\n";
+	SendMsgToClients("---SyncVars---");
 
 	auto& registry = SyncRegistry::Instance().Get();
 
 	if (registry.empty())
 	{
 		std::cout << "[ShowSyncVars] registry empty!\n";
-		out += "registry empty\n";
 	}
 
 	for (auto& syncVar : registry)
 	{
-		const std::string& name = syncVar.first;
+		std::string name = syncVar.first;
 		const SyncEntry& entry = syncVar.second;
 
-		// debug serveur
-		std::cout << "[ShowSyncVars] " << name << " type=" << static_cast<int>(entry.type)
-			<< " size=" << entry.size << " ptr=" << entry.data << "\n";
+		// PRINT SERVER-SIDE (debug)
+		std::cout << "[ShowSyncVars] " << name << " type=" << static_cast<int>(entry.type) << " size=" << entry.size << " ptr=" << entry.data << "\n";
 
-		out += name;
-		out += "=";
+		// envoie vers clients
+		SendMsgToClients(name.c_str());
+		SendMsgToClients("=");
+		switch (entry.type)
+		{
+		case SyncType::STRING:
+			SendMsgToClients(static_cast<std::string*>(entry.data)->c_str());
+			break;
+		case SyncType::BOOL:
+			SendMsgToClients((*static_cast<bool*>(entry.data)) ? "true" : "false");
+			break;
+		case SyncType::INT:
+			SendMsgToClients(std::to_string(*static_cast<int*>(entry.data)).c_str());
+			break;
+		case SyncType::FLOAT:
+			SendMsgToClients(std::to_string(*static_cast<float*>(entry.data)).c_str());
+			break;
+		default:
+			SendMsgToClients("Unknown");
+		}
+	}
 
+	SendMsgToClients("--------------");
+}
+
+void Client::PrintSyncVar()
+{
+	std::cout << "---SyncVars---\n";
+
+	auto& registry = SyncRegistry::Instance().Get();
+
+	if (registry.empty())
+	{
+		std::cout << "[ShowSyncVars] registry empty!\n";
+	}
+
+	for (auto& syncVar : registry)
+	{
+		std::string name = syncVar.first;
+		const SyncEntry& entry = syncVar.second;
+
+		std::cout << name.c_str() << ": ";
 		switch (entry.type)
 		{
 		case SyncType::INT:
-			out += std::to_string(*static_cast<int*>(entry.data));
+		{
+			std::cout << "INT=";
+			std::cout << std::to_string(*static_cast<int*>(entry.data)).c_str();
 			break;
+		}
 		case SyncType::FLOAT:
-			out += std::to_string(*static_cast<float*>(entry.data));
+		{
+			std::cout << "FLOAT=";
+			std::cout << std::to_string(*static_cast<float*>(entry.data)).c_str();
 			break;
+		}
 		case SyncType::BOOL:
-			out += (*static_cast<bool*>(entry.data)) ? "true" : "false";
+		{
+			std::cout << "BOOL=";
+			bool value = *static_cast<bool*>(entry.data);
+			std::cout << (value ? "true" : "false");
 			break;
+		}
 		case SyncType::STRING:
-			out += *static_cast<std::string*>(entry.data);
+		{
+			std::cout << "STRING=";
+			std::cout << static_cast<std::string*>(entry.data)->c_str();
 			break;
+		}
 		default:
-			out += "Unknown";
+			std::cout << "ERROR ";
 		}
 
-		out += "\n";
+		std::cout << " size=" << entry.size << std::endl;
 	}
 
-	out += "--------------\n";
+	std::cout << "------------" << std::endl;
+}
 
-	// Envoi d'un seul paquet contenant tout
-	SendMsgToClients(out.c_str());
+void Client::SyncVarsToClients()
+{
+	if (!m_clients.empty())
+	{
+		auto& registry = SyncRegistry::Instance().Get();
+
+		for (auto& [name, entry] : registry)
+		{
+			Package pkg{};
+
+			memset(pkg.name, 0, sizeof(pkg.name));
+			size_t nameLen = name.size();
+			if (nameLen > sizeof(pkg.name) - 1)nameLen = sizeof(pkg.name) - 1;
+			memcpy(pkg.name, name.c_str(), nameLen);
+
+			if (entry.type == SyncType::STRING)
+			{
+				std::string* s = static_cast<std::string*>(entry.data);
+				size_t dataLen = s->size();
+
+				if (dataLen > sizeof(pkg.data))dataLen = sizeof(pkg.data);
+
+				pkg.dataSize = (int)dataLen;
+				pkg.type = entry.type;
+				memcpy(pkg.data, s->c_str(), dataLen);
+			}
+			else
+			{
+				size_t sendSize = entry.size;
+
+				if (sendSize > sizeof(pkg.data))sendSize = sizeof(pkg.data);
+
+				pkg.dataSize = (int)sendSize;
+				pkg.type = entry.type;
+				memcpy(pkg.data, entry.data, sendSize);
+			}
+
+			for (auto client : m_clients)
+			{
+				ENetPacket* packet = enet_packet_create(&pkg, sizeof(pkg), ENET_PACKET_FLAG_RELIABLE);
+				enet_peer_send(client, 0, packet);
+				std::cout << "Client" << client->connectID << " (syncing vars...)" << std::endl;
+			}
+		}
+
+		enet_host_flush(m_pHost);
+	}
 }
 
 bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
@@ -169,26 +282,29 @@ bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
 			switch (event.type)
 			{
 			case ENET_EVENT_TYPE_CONNECT:
+			{
 				std::cout << "Succesfully connected to Enet Server !" << std::endl;
 				connected = true;
 				SendMsgToServer("bruh");
-				//SendMsgToServer();
 				break;
+			}
 			case ENET_EVENT_TYPE_RECEIVE:
-				//SendMsgToServer();
-				//m_mapSyncVar = event.packet->data; // copy mcpy map
-				package = reinterpret_cast<Package*>(event.packet->data);
+			{
+				if (event.packet->dataLength == sizeof(Package))
+				{
+					Package* package = reinterpret_cast<Package*>(event.packet->data);
 
-				//memcpy(m_mapSyncVar[package->name], package->data, package->dataSize);
-
-				std::cout << "Server sent : " << event.packet->data << std::endl;
-
+					ReceiveSyncVar(package);
+					PrintSyncVar();
+				}
+				else
+				{
+					std::cout << "Server msg : " << event.packet->data << std::endl;
+				}
 				enet_packet_destroy(event.packet);
 
-				//loop
-				SendMsgToServer();
-
 				break;
+			}
 			default:
 				break;
 			}
@@ -238,7 +354,7 @@ bool Client::SendMsgToServer(const char* _message)
 
 void Client::CommandManager(std::string command)
 {
-	if (command[0] == '/') //Slash = command
+	if (command[0] == '/')
 	{
 		if (command == "/close")
 		{
@@ -248,22 +364,109 @@ void Client::CommandManager(std::string command)
 		{
 			DisconnectFromServer();
 		}
+		if (command == "/sendToServ")
+		{
+			SendSyncVar();
+		}
 	}
 }
 
-void Client::SyncVarsToClients(const std::string& name, const void* data, size_t size)
+void Client::ReceiveSyncVar(Package* package)
 {
-	Package pkg{};
+	std::cout << "Receiving syncVars..." << std::endl;
 
-	strncpy_s(pkg.name, name.c_str(), sizeof(pkg.name));
-	pkg.dataSize = size;
+	size_t nameLen = strnlen(package->name, sizeof(package->name));
+	std::string pkgName(package->name, nameLen);
 
-	memcpy(pkg.data, data, size);
+	auto& registry = SyncRegistry::Instance().Get();
 
-	ENetPacket* packet = enet_packet_create(&pkg, sizeof(pkg), ENET_PACKET_FLAG_RELIABLE);
-
-	for (auto client : m_clients)
+	// Supprimer ancien entry proprement
+	auto it = registry.find(pkgName);
+	if (it != registry.end())
 	{
-		enet_peer_send(client, 0, packet);
+		SyncEntry& old = it->second;
+
+		if (old.data && old.ownerAllocated)
+		{
+			if (old.type == SyncType::STRING)
+				delete static_cast<std::string*>(old.data);
+			else
+				free(old.data);
+		}
+
+		registry.erase(it);
 	}
+
+	// Nouvelle entry
+	SyncEntry entry{};
+	entry.size = static_cast<size_t>(package->dataSize);
+	entry.type = package->type;
+	entry.ownerAllocated = true;
+
+	if (entry.size > sizeof(package->data))
+		entry.size = sizeof(package->data);
+
+	if (package->type == SyncType::STRING)
+	{
+		std::string* s = new std::string(
+			package->data,
+			package->data + entry.size
+		);
+
+		entry.data = s;
+	}
+	else
+	{
+		void* mem = malloc(entry.size ? entry.size : 1);
+		memcpy(mem, package->data, entry.size);
+		entry.data = mem;
+	}
+
+	SyncRegistry::Instance().Register(pkgName, entry);
+
+	std::cout << "Received pkg: " << pkgName
+		<< " size=" << entry.size << std::endl;
+}
+
+void Client::SendSyncVar()
+{
+	auto& registry = SyncRegistry::Instance().Get();
+
+	for (auto& [name, entry] : registry)
+	{
+		Package pkg{};
+
+		memset(pkg.name, 0, sizeof(pkg.name));
+		size_t nameLen = name.size();
+		if (nameLen > sizeof(pkg.name) - 1)nameLen = sizeof(pkg.name) - 1;
+		memcpy(pkg.name, name.c_str(), nameLen);
+
+		if (entry.type == SyncType::STRING)
+		{
+			std::string* s = static_cast<std::string*>(entry.data);
+			size_t dataLen = s->size();
+
+			if (dataLen > sizeof(pkg.data))dataLen = sizeof(pkg.data);
+
+			pkg.dataSize = (int)dataLen;
+			pkg.type = entry.type;
+			memcpy(pkg.data, s->c_str(), dataLen);
+		}
+		else
+		{
+			size_t sendSize = entry.size;
+
+			if (sendSize > sizeof(pkg.data))sendSize = sizeof(pkg.data);
+
+			pkg.dataSize = (int)sendSize;
+			pkg.type = entry.type;
+			memcpy(pkg.data, entry.data, sendSize);
+		}
+
+		ENetPacket* packet = enet_packet_create(&pkg, sizeof(pkg), ENET_PACKET_FLAG_RELIABLE);
+		enet_peer_send(m_pServerConnection, 0, packet);
+		std::cout << "Server" << m_pServerConnection->connectID << " (syncing vars...)" << std::endl;
+	}
+
+	enet_host_flush(m_pHost);
 }
