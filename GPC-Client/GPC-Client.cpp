@@ -23,6 +23,7 @@ int main()
     {
         testClient.PrintSyncVar();
         std::string localIp = testClient.GetLocalIP();
+        std::cout << "CLIENT IP = " << localIp << std::endl;
         if(testClient.ConnectingTo(localIp.c_str(), 54321))
         {
             //testClient.ClientLoop();

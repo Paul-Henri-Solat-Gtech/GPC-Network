@@ -29,6 +29,8 @@ int main()
 	// Server INIT
 	Network testNetwork;
 
+	std::string localIp = testNetwork.GetLocalIP();
+	std::cout << "NETWORK IP = " << localIp << std::endl;
 	if (testNetwork.Init(true, 54321))
 	{
 		testNetwork.PrintSyncVar();
