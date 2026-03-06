@@ -22,7 +22,8 @@ int main()
     if (testClient.Init()) 
     {
         testClient.PrintSyncVar();
-        if(testClient.ConnectingTo("127.0.0.1", 54321)) 
+        std::string localIp = testClient.GetLocalIP();
+        if(testClient.ConnectingTo(localIp.c_str(), 54321))
         {
             //testClient.ClientLoop();
             if (testClient.SendMsgToServer("HI ! Im going to send you my data(client).")) 

@@ -237,14 +237,6 @@ bool Network::ConnectingTo(const char* _addressIP, int _addressPort)
 
 	ClientLoop();
 
-	//m_networkThread = std::thread(&Network::ClientLoop, this);
-	//m_inputThread = std::thread(&Network::SendMsgToServerA, this);
-	//std::thread NetworkLoopThread(&Network::ClientLoop, this);
-	//std::thread NetworkMsgThread(&Network::SendMsgToServerA, this);
-	//NetworkLoopThread.detach();
-	//NetworkMsgThread.detach();
-	//std::cout << "Ok threads can be COOL" << std::endl;
-
 	return true;
 }
 
@@ -439,4 +431,25 @@ void Network::SendSyncVar()
 	}
 
 	enet_host_flush(m_pHost);
+}
+
+std::string Network::GetLocalIP()
+{
+	char hostname[256];
+	gethostname(hostname, sizeof(hostname));
+
+	addrinfo hints = {};
+	hints.ai_family = AF_INET;
+
+	addrinfo* result = nullptr;
+	getaddrinfo(hostname, NULL, &hints, &result);
+
+	char ip[INET_ADDRSTRLEN] = { 0 };
+
+	sockaddr_in* sockaddr_ipv4 = (sockaddr_in*)result->ai_addr;
+	inet_ntop(AF_INET, &sockaddr_ipv4->sin_addr, ip, sizeof(ip));
+
+	freeaddrinfo(result);
+
+	return std::string(ip);
 }

@@ -7,6 +7,10 @@
 #include <type_traits>
 #include <string>
 
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma comment(lib, "ws2_32.lib")
+
 class Client;
 
 enum class SyncType
@@ -154,6 +158,8 @@ public:
 	void CommandManager(std::string command);
 	void ReceiveSyncVar(Package* package);
 	void SendSyncVar();
+
+	std::string GetLocalIP();
 
 	static Client& Instance()
 	{
