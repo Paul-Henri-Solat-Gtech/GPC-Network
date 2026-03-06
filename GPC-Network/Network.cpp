@@ -62,7 +62,7 @@ void Network::ServerLoop()
 				{
 				case ENET_EVENT_TYPE_CONNECT:
 				{
-					std::cout << "New Network has joinned !" << std::endl;
+					std::cout << "New Client has joinned !" << std::endl;
 					m_clients.push_back(event.peer);
 
 					SendMsgToClients("I will give you my sync vars.");
@@ -72,7 +72,7 @@ void Network::ServerLoop()
 				}
 				case ENET_EVENT_TYPE_DISCONNECT:
 				{
-					std::cout << "Network disconnected !" << std::endl;
+					std::cout << "Client disconnected !" << std::endl;
 					auto it = std::remove(m_clients.begin(), m_clients.end(), event.peer);
 					m_clients.erase(it, m_clients.end());
 					break;
@@ -88,7 +88,7 @@ void Network::ServerLoop()
 					}
 					else
 					{
-						std::cout << "Network msg : " << event.packet->data << std::endl;
+						std::cout << "Client msg : " << event.packet->data << std::endl;
 					}
 					enet_packet_destroy(event.packet);
 					break;
@@ -236,6 +236,7 @@ bool Network::ConnectingTo(const char* _addressIP, int _addressPort)
 	}
 
 	ClientLoop();
+
 	//m_networkThread = std::thread(&Network::ClientLoop, this);
 	//m_inputThread = std::thread(&Network::SendMsgToServerA, this);
 	//std::thread NetworkLoopThread(&Network::ClientLoop, this);

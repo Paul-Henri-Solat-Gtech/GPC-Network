@@ -236,6 +236,7 @@ bool Client::ConnectingTo(const char* _addressIP, int _addressPort)
 	}
 
 	ClientLoop();
+
 	//m_networkThread = std::thread(&Network::ClientLoop, this);
 	//m_inputThread = std::thread(&Network::SendMsgToServerA, this);
 	//std::thread NetworkLoopThread(&Network::ClientLoop, this);

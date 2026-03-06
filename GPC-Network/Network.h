@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <type_traits>
 #include <string>
-#include <thread>
 
 class Network;
 
@@ -178,8 +177,6 @@ private:
 	bool m_isServer = false;
 	bool m_isRunning = false;
 	bool m_isConnected = false;
-	std::thread m_networkThread;
-	std::thread m_inputThread;
 };
 
 #endif
